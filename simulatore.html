@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Simulatore T9 vs AI - Demo Didattica</title>
+<style>
+body{font-family:Verdana,Arial;background:#dcdde1;padding:30px}
+.container{max-width:1100px;margin:auto;background:white;padding:30px;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,0.2)}
+h1{text-align:center;margin-bottom:10px}
+.subtitle{text-align:center;color:#555;margin-bottom:25px}
+
+/* display stile Nokia */
+.display{background:#c7f0a9;border:4px solid #2f3640;border-radius:8px;padding:15px;font-size:28px;text-align:center;margin-bottom:20px;letter-spacing:4px;font-weight:bold}
+
+.keyboard{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.key{background:#718093;color:white;border:none;border-radius:10px;padding:20px;font-size:20px;cursor:pointer}
+.key:hover{background:#2f3640}
+
+.controls{text-align:center;margin-bottom:20px}
+button.main{font-size:18px;padding:12px 20px;margin:5px;border:none;border-radius:8px;background:#192a56;color:white;cursor:pointer}
+button.main:hover{background:#0c1a3a}
+
+.results{margin-top:20px;font-size:20px;text-align:center}
+.word{background:#dcdde1;padding:6px 12px;border-radius:6px;margin:4px;display:inline-block}
+.best{background:#44bd32;color:white;font-weight:bold}
+.freq{font-size:14px;margin-left:6px;color:#333}
+
+.chartBox{margin-top:30px}
+canvas{background:#fafafa;border:1px solid #ccc;margin-top:10px}
+
+.section{margin-top:35px;padding-top:10px;border-top:2px solid #eee}
+
+.exampleBtn{margin:5px;padding:8px 12px;border:none;border-radius:6px;background:#40739e;color:white;cursor:pointer}
+
+.quizBox{background:#f5f6fa;padding:15px;border-left:5px solid #273c75;margin-top:10px}
+
+.aiBox{margin-top:15px;padding:15px;background:#f1f2f6;border-left:5px solid #192a56}
+
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h1>Simulatore T9 vs AI</h1>
+<div class="subtitle">Come funzionava il predictive text e come funzionano i modelli linguistici moderni</div>
+
+<div id="display" class="display">----</div>
+
+<div class="keyboard">
+<button class="key" onclick="add(2)">2 ABC</button>
+<button class="key" onclick="add(3)">3 DEF</button>
+<button class="key" onclick="add(4)">4 GHI</button>
+<button class="key" onclick="add(5)">5 JKL</button>
+<button class="key" onclick="add(6)">6 MNO</button>
+<button class="key" onclick="add(7)">7 PQRS</button>
+<button class="key" onclick="add(8)">8 TUV</button>
+<button class="key" onclick="add(9)">9 WXYZ</button>
+<button class="key" onclick="clearInput()">Cancella</button>
+</div>
+
+<div class="controls">
+<button class="main" onclick="predictAnimated()">Previsione T9</button>
+</div>
+
+<div class="results" id="results"></div>
+
+<div class="chartBox">
+<b>Distribuzione di probabilità</b>
+<canvas id="chart" width="900" height="300"></canvas>
+</div>
+
+<div class="section">
+<h3>Esempi veloci</h3>
+<button class="exampleBtn" onclick="loadExample('4663')">4663</button>
+<button class="exampleBtn" onclick="loadExample('2663')">2663</button>
+<button class="exampleBtn" onclick="loadExample('43556')">43556</button>
+</div>
+
+<div class="section">
+<h3>Quiz per la classe</h3>
+<div class="quizBox">
+Sequenza: <b id="quizSeq">----</b>
+<br><br>
+<button class="exampleBtn" onclick="newQuiz()">Nuovo quiz</button>
+<button class="exampleBtn" onclick="solveQuiz()">Mostra soluzione</button>
+</div>
+</div>
+
+<div class="section">
+<h3>Confronto con AI moderna</h3>
+<div class="aiBox">
+Il T9 sceglie la parola con probabilità maggiore.<br><br>
+I modelli AI moderni analizzano invece <b>tutto il contesto della frase</b>.
+
+<p><b>Esempio:</b></p>
+
+<p>"Ci vediamo ____"</p>
+
+<ul>
+<li>domani</li>
+<li>dopo</li>
+<li>subito</li>
+</ul>
+
+Un modello linguistico sceglie la parola più coerente con il significato della frase.
+</div>
+</div>
+
+</div>
+
+<script>
+
+/* corpus simulato ~1000 parole */
+
+const dictionary=[];
+
+/* gruppi di parole con STESSA sequenza T9 per la dimostrazione */
+
+const demoWords=[
+
+/* 4663 */
+"good","home","gone","hood","hone","ione",
+
+/* 2272 */
+"casa","cara","bara","cava",
+
+/* 2663 */
+"come","cone","bone",
+
+/* 43556 */
+"hello",
+
+/* 7263 */
+"pane","rame","sane"
+];
+
+/* aggiungiamo queste parole con frequenze diverse */
+
+demoWords.forEach(w=>{
+ dictionary.push({w:w,f:Math.floor(Math.random()*800)+200});
+});
+
+/* parole italiane realistiche per riempire il corpus */
+
+const italianWords=[
+"cane","gatto","mare","sole","luna","porta","strada","libro","penna","scuola",
+"tempo","giorno","notte","amico","lavoro","donna","uomo","telefono","computer",
+"rete","dato","numero","modello","lingua","programma","algoritmo","dato","rete",
+"digitale","sistema","memoria","processo","utente","pagina","server","cliente"
+];
+
+for(let i=0;i<1000;i++){
+ const w=italianWords[Math.floor(Math.random()*italianWords.length)];
+ const freq=Math.floor(Math.random()*400)+20;
+ dictionary.push({w:w,f:freq});
+}
+
+const map={
+2:"abc",
+3:"def",
+4:"ghi",
+5:"jkl",
+6:"mno",
+7:"pqrs",
+8:"tuv",
+9:"wxyz"
+};
+
+let current="";
+
+function updateDisplay(){
+ document.getElementById("display").textContent=current || "----";
+}
+
+function add(n){
+ current+=n;
+ updateDisplay();
+}
+
+function clearInput(){
+ current="";
+ updateDisplay();
+ document.getElementById("results").innerHTML="";
+ clearChart();
+}
+
+function loadExample(seq){
+ current=seq;
+ updateDisplay();
+ predictAnimated();
+}
+
+function match(word,numbers){
+ if(word.length!==numbers.length) return false;
+ for(let i=0;i<numbers.length;i++){
+  const letters=map[numbers[i]];
+  if(!letters.includes(word[i])) return false;
+ }
+ return true;
+}
+
+function predictAnimated(){
+ document.getElementById("results").innerHTML="Calcolo probabilità...";
+ setTimeout(predict,800);
+}
+
+function predict(){
+ const numbers=current;
+ const results=document.getElementById("results");
+ results.innerHTML="";
+
+ const found=dictionary.filter(obj=>match(obj.w,numbers));
+
+ if(found.length===0){
+  results.innerHTML="Nessuna parola trovata";
+  clearChart();
+  return;
+ }
+
+ found.sort((a,b)=>b.f-a.f);
+
+ const top=found.slice(0,6);
+
+ let total=0;
+ top.forEach(o=>total+=o.f);
+
+ top.forEach((obj,i)=>{
+
+  const span=document.createElement("span");
+  span.className="word"+(i===0?" best":"");
+  span.textContent=obj.w;
+
+  const prob=(obj.f/total).toFixed(2);
+
+  const freq=document.createElement("span");
+  freq.className="freq";
+  freq.textContent=" P="+prob;
+
+  span.appendChild(freq);
+  results.appendChild(span);
+
+ });
+
+ drawChart(top,total);
+}
+
+function drawChart(words,total){
+ const canvas=document.getElementById("chart");
+ const ctx=canvas.getContext("2d");
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+
+ const barWidth=90;
+ const gap=40;
+
+ words.forEach((obj,i)=>{
+
+  const prob=obj.f/total;
+  const height=prob*220;
+
+  const x=80+i*(barWidth+gap);
+  const y=250-height;
+
+  ctx.fillStyle=i===0?"#44bd32":"#718093";
+  ctx.fillRect(x,y,barWidth,height);
+
+  ctx.fillStyle="#000";
+  ctx.fillText(obj.w,x,y+height+18);
+
+  ctx.fillText(prob.toFixed(2),x,y-6);
+
+ });
+}
+
+function clearChart(){
+ const canvas=document.getElementById("chart");
+ const ctx=canvas.getContext("2d");
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+}
+
+/* quiz */
+
+const quizSequences=["4663","43556","2663","7263"];
+
+function newQuiz(){
+ const seq=quizSequences[Math.floor(Math.random()*quizSequences.length)];
+ document.getElementById("quizSeq").textContent=seq;
+}
+
+function solveQuiz(){
+ const seq=document.getElementById("quizSeq").textContent;
+ if(seq==="----") return;
+ current=seq;
+ updateDisplay();
+ predictAnimated();
+}
+
+updateDisplay();
+
+</script>
+
+</body>
+</html>
